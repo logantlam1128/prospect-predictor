@@ -1,14 +1,16 @@
 from pathlib import Path
 import torch
+import copy
 
 from dataset import make_loaders
 from model import ProspectNet
 from targets import make_targets_and_mask, masked_loss, compute_pos_weight
 
-EPOCHS = 30
+EPOCHS = 100
 LEARNING_RATE = 0.001
 SEED = 42
 USE_CLASS_WEIGHTS = True
+PATIENCE = 10
 
 def run_epoch(model, loader, optimizer=None, pos_weights=None):
     total_loss = 0.0
@@ -29,10 +31,14 @@ def run_epoch(model, loader, optimizer=None, pos_weights=None):
 def main():
     torch.manual_seed(SEED)
     train_loader, val_loader, test_loader = make_loaders(seed = SEED)
+    best_val_loss = float("inf")
+    best_epoch = 0
+    best_state = None
+    epochs_without_improvement = 0
 
     train_ds = train_loader.dataset
     pos_weights = compute_pos_weight(train_ds.tier, train_ds.complete) if USE_CLASS_WEIGHTS else None
-    print("pos_weighst:", pos_weights)
+    print("pos_weights:", pos_weights)
 
     model = ProspectNet()
     optimizer = torch.optim.Adam(model.parameters(), lr = LEARNING_RATE)
@@ -46,6 +52,21 @@ def main():
             val_loss = run_epoch(model, val_loader, pos_weights=pos_weights)
             
         print(f"Epoch {epoch:2d} | train loss {train_loss:.4f} | val loss {val_loss:.4f}")
+
+        if val_loss < best_val_loss:
+            best_val_loss = val_loss
+            best_epoch = epoch
+            best_state = copy.deepcopy(model.state_dict())
+            epochs_without_improvement = 0
+        else:
+            epochs_without_improvement += 1
+
+        if epochs_without_improvement >= PATIENCE:
+            print(f"No improvement for {PATIENCE} epochs, stopping early at epoch {epoch}")
+            break
+
+    model.load_state_dict(best_state)
+    print(f"Best epoch: {best_epoch} (val loss {best_val_loss:.4f})")
 
     model_dir = Path(__file__).resolve().parent.parent / "models"
     model_dir.mkdir(exist_ok=True)
