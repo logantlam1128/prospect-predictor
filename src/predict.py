@@ -9,9 +9,10 @@ import pandas as pd
 import torch
 
 from dataset import load_data, split_by_player, standardize, FEATURE_COLS
-from model import ProspectNet
+from model import ProspectNet, CoralNet
 
-MODEL_PATH = Path(__file__).resolve().parent.parent / "models" / "prospect_net.pt"
+MODEL_NAME = "coral.pt"
+MODEL_PATH = Path(__file__).resolve().parent.parent / "models" / MODEL_NAME
 SEED = 42    # same split as training, so these are players the model never trained on
 
 LEVEL_NAMES = ["Rookie", "Low-A", "High-A", "Double-A", "Triple-A"]
@@ -53,7 +54,7 @@ def main():
     train_df, val_df, test_df = split_by_player(df, seed=SEED)
     _, val_std, _ = standardize(train_df, val_df, test_df)  # val_df stays raw
 
-    model = ProspectNet()
+    model = CoralNet() if MODEL_NAME.startswith("coral") else ProspectNet()
     model.load_state_dict(torch.load(MODEL_PATH))
     model.eval()
 

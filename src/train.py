@@ -3,14 +3,15 @@ import torch
 import copy
 
 from dataset import make_loaders
-from model import ProspectNet
+from model import ProspectNet, CoralNet
 from targets import make_targets_and_mask, masked_loss, compute_pos_weight
 
 EPOCHS = 100
 LEARNING_RATE = 0.001
 SEED = 42
-USE_CLASS_WEIGHTS = True
 PATIENCE = 10
+USE_CORAL = True
+USE_CLASS_WEIGHTS = False
 
 def run_epoch(model, loader, optimizer=None, pos_weights=None):
     total_loss = 0.0
@@ -40,7 +41,7 @@ def main():
     pos_weights = compute_pos_weight(train_ds.tier, train_ds.complete) if USE_CLASS_WEIGHTS else None
     print("pos_weights:", pos_weights)
 
-    model = ProspectNet()
+    model = CoralNet() if USE_CORAL else ProspectNet()
     optimizer = torch.optim.Adam(model.parameters(), lr = LEARNING_RATE)
 
     for epoch in range(1, EPOCHS + 1):
@@ -70,7 +71,8 @@ def main():
 
     model_dir = Path(__file__).resolve().parent.parent / "models"
     model_dir.mkdir(exist_ok=True)
-    name = "prospect_net_weighted.pt" if USE_CLASS_WEIGHTS else "prospect_net.pt"
+    base = "coral" if USE_CORAL else "prospect_net"
+    name = base + ("_weighted" if USE_CLASS_WEIGHTS else "") + ".pt"
     torch.save(model.state_dict(), model_dir / name)
     print("Saved model to", model_dir / name)
 

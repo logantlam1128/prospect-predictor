@@ -109,7 +109,6 @@ def generate_seasons_for_player(player, rng):
             "tier": tier,
             "career_complete": player["career_complete"],
         })
-
     return seasons
 
 def generate_dataset(n_players=N_PLAYERS, seed=SEED):
@@ -127,7 +126,6 @@ def generate_dataset(n_players=N_PLAYERS, seed=SEED):
         all_seasons.extend(new_seasons)
 
     return pd.DataFrame(all_seasons)
-
 
 # ---------- already written: checks your output ----------
 def check_dataset(df):
@@ -154,9 +152,6 @@ def check_dataset(df):
     print(df.groupby("tier")["player_id"].nunique(), "\n")
     print("Average stats by tier (better tiers should have lower k_pct, higher iso):")
     print(df.groupby("tier")[["k_pct", "iso", "bb_pct", "age", "level"]].mean().round(3))
-
-
-
 
 if __name__ == "__main__":
     from pathlib import Path

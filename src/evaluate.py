@@ -3,9 +3,10 @@ import pandas as pd
 import torch
 
 from dataset import make_loaders
-from model import ProspectNet
+from model import ProspectNet, CoralNet
 
-MODEL_PATH = Path(__file__).resolve().parent.parent / "models" / "prospect_net_weighted.pt"
+MODEL_NAME = "coral.pt"
+MODEL_PATH = Path(__file__).resolve().parent.parent / "models" / MODEL_NAME
 SEED = 42
 STAR_TIER = 3
 
@@ -41,8 +42,9 @@ def star_metics(pred, true):
 def main():
     _, val_loader, _ = make_loaders(seed=SEED)
 
-    model = ProspectNet()
+    model = CoralNet() if MODEL_NAME.startswith("coral") else ProspectNet()
     model.load_state_dict(torch.load(MODEL_PATH))
+    print("Evaluating:", MODEL_NAME)
 
     pred, true, complete = collect_predictions(model, val_loader)
 
