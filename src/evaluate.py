@@ -2,8 +2,10 @@ from pathlib import Path
 import pandas as pd
 import torch
 
-from dataset import make_loaders
+from dataset import make_loaders, FEATURE_COLS
 from model import ProspectNet, CoralNet
+from sklearn.metrics import roc_auc_score, average_precision_score
+from targets import make_targets_and_mask
 
 MODEL_NAME = "coral.pt"
 MODEL_PATH = Path(__file__).resolve().parent.parent / "models" / MODEL_NAME
@@ -27,6 +29,7 @@ def collect_predictions(model, loader):
             completes.append(complete)
     return torch.cat(preds), torch.cat(trues), torch.cat(completes)
 
+
 def star_metics(pred, true):
     true_star = true >= STAR_TIER
     pred_star = pred >= STAR_TIER
@@ -39,10 +42,39 @@ def star_metics(pred, true):
 
     return recall, precision
 
+
+def ranking_report(model, loader, k=2):
+    """How well does the model RANK players on tier question k (default 2 = All-Star+)?"""
+    probs, targets, masks = [], [], []
+    model.eval()
+    with torch.no_grad():
+        for x, tier, complete in loader:
+            probs.append(torch.sigmoid(model(x))[:, k])
+            target, mask = make_targets_and_mask(tier, complete)
+            targets.append(target[:, k])
+            masks.append(mask[:, k])
+    p, y, m = torch.cat(probs), torch.cat(targets), torch.cat(masks)
+    known = m == 1
+    p, y = p[known].numpy(), y[known].numpy()
+
+    print(f"\nRanking quality (All-Star+, {int(y.sum())} known stars out of {len(y)} rows):")
+    print(f"  ROC-AUC:           {roc_auc_score(y, p):.3f}")
+    print(f"  Average precision: {average_precision_score(y, p):.3f}   (random guessing = {y.mean():.3f})")
+
+    print("\n  Cutoff | Recall | Precision | Flagged")
+    for cutoff in [0.5, 0.3, 0.2, 0.1, 0.05]:
+        flagged = p >= cutoff
+        hits = (flagged & (y == 1)).sum()
+        recall = hits / max(y.sum(), 1)
+        precision = hits / max(flagged.sum(), 1)
+        print(f"  {cutoff:>6} | {recall:6.1%} | {precision:9.1%} | {flagged.sum():7d}")
+
+
 def main():
     _, val_loader, _ = make_loaders(seed=SEED)
 
-    model = CoralNet() if MODEL_NAME.startswith("coral") else ProspectNet()
+    n_features = len(FEATURE_COLS)
+    model = CoralNet(n_features=n_features) if MODEL_NAME.startswith("coral") else ProspectNet(n_features=n_features)
     model.load_state_dict(torch.load(MODEL_PATH))
     print("Evaluating:", MODEL_NAME)
 
@@ -63,6 +95,7 @@ def main():
 
     print("\nConfusion matrix (rows = true tier, columns = predicted tier):")
     print(pd.crosstab(true.numpy(), pred.numpy(), rownames=["true"], colnames=["pred"]))
+    ranking_report(model, val_loader)
 
 
 if __name__ == "__main__":

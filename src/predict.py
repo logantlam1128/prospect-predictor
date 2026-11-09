@@ -15,15 +15,16 @@ MODEL_NAME = "coral.pt"
 MODEL_PATH = Path(__file__).resolve().parent.parent / "models" / MODEL_NAME
 SEED = 42    # same split as training, so these are players the model never trained on
 
-LEVEL_NAMES = ["Rookie", "Low-A", "High-A", "Double-A", "Triple-A"]
+LEVEL_NAMES = ["Rookie", "Short-season A", "Single-A", "High-A", "Double-A", "Triple-A"]
 PROB_COLS = ["P(MLB)", "P(Starter+)", "P(All-Star+)", "P(All-MLB+)", "P(HOF)"]
-DISPLAY_COLS = ["name", "season", "age", "level", "position", "k_pct", "iso", "bb_pct", "babip"]
+DISPLAY_COLS = ["name", "season", "age", "level", "position", "k_pct", "iso", "bb_pct", "babip", "age_rel", "tier", "career_complete"]
 
 EXPLAIN_Q = 2
 TIER_NAMES = ["Never reaches MLB", "Fringe major leaguer", "MLB starter",
               "All-Star caliber", "All-MLB caliber", "Hall of Fame caliber"]
 STAT_LABELS = {"age": "age", "level": "level", "k_pct": "strikeout rate",
-               "iso": "power (ISO)", "bb_pct": "walk rate", "babip": "BABIP"}
+               "iso": "power (ISO)", "bb_pct": "walk rate", "babip": "BABIP",
+               "age_rel": "age vs. his level"}
 
 
 def predict_table(model, raw_df, std_df):
@@ -82,6 +83,10 @@ def describe(col, raw_row):
         return f"{value:.0%}"
     if col in ("iso", "babip"):
         return f"{value:.3f}".lstrip("0")
+    if col == "age_rel":
+        return f"{value:+.1f} yrs"
+    if col == "age":
+        return str(int(value))
     return str(value)
 
 
@@ -108,12 +113,12 @@ def explain_player(model, x_row, raw_row, threshold=3.0):
 
 def main():
     df = load_data()
-    df["name"] = "Player " + df["player_id"].astype(str)    # real names replace this later
 
     train_df, val_df, test_df = split_by_player(df, seed=SEED)
     _, val_std, _ = standardize(train_df, val_df, test_df)  # val_df stays raw
 
-    model = CoralNet() if MODEL_NAME.startswith("coral") else ProspectNet()
+    n_features = len(FEATURE_COLS)
+    model = CoralNet(n_features=n_features) if MODEL_NAME.startswith("coral") else ProspectNet(n_features=n_features)
     model.load_state_dict(torch.load(MODEL_PATH))
     model.eval()
 

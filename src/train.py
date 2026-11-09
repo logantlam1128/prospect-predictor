@@ -2,7 +2,7 @@ from pathlib import Path
 import torch
 import copy
 
-from dataset import make_loaders
+from dataset import make_loaders, FEATURE_COLS
 from model import ProspectNet, CoralNet
 from targets import make_targets_and_mask, masked_loss, compute_pos_weight
 
@@ -41,7 +41,8 @@ def main():
     pos_weights = compute_pos_weight(train_ds.tier, train_ds.complete) if USE_CLASS_WEIGHTS else None
     print("pos_weights:", pos_weights)
 
-    model = CoralNet() if USE_CORAL else ProspectNet()
+    n_features = len(FEATURE_COLS)
+    model = CoralNet(n_features=n_features) if USE_CORAL else ProspectNet(n_features=n_features)
     optimizer = torch.optim.Adam(model.parameters(), lr = LEARNING_RATE)
 
     for epoch in range(1, EPOCHS + 1):

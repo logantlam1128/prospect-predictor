@@ -4,7 +4,7 @@ import pandas as pd
 import torch
 from torch.utils.data import Dataset, DataLoader
 
-DATA_PATH = Path(__file__).resolve().parent.parent/ "data" / "processed" / "fake_player_seasons.csv"
+DATA_PATH = Path(__file__).resolve().parent.parent/ "data" / "processed" / "real_player_seasons.csv"
 
 POSITIONS = ["C", "1B", "2B", "3B", "SS", "LF", "CF", "RF"]
 NUMERIC_COLS = ["age", "level", "k_pct", "iso", "bb_pct", "babip"]
